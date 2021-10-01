@@ -3,7 +3,6 @@
 /// <summary>
 /// This class goes on a trigger which, when entered, sends the player to another Location
 /// </summary>
-
 public class LocationExit : MonoBehaviour
 {
 	[SerializeField] private GameSceneSO _locationToLoad = default;
@@ -17,9 +16,7 @@ public class LocationExit : MonoBehaviour
 	{
 		if (other.CompareTag("Player"))
 		{
-			if (_pathStorage != null)
-				_pathStorage.lastPathTaken = _leadsToPath;
-
+			_pathStorage.lastPathTaken = _leadsToPath;
 			_locationExitLoadChannel.RaiseEvent(_locationToLoad, false, true);
 		}
 	}

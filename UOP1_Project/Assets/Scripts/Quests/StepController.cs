@@ -11,15 +11,14 @@ public class StepController : MonoBehaviour
 	[SerializeField] private ActorSO _actor = default;
 	[SerializeField] private DialogueDataSO _defaultDialogue = default;
 	[SerializeField] private QuestManagerSO _questData = default;
+	[SerializeField] private GameStateSO _gameStateManager = default;
 
 	[Header("Listening to channels")]
-	[SerializeField] private DialogueActorChannelSO _interactionEvent = default;
 	[SerializeField] private VoidEventChannelSO _winDialogueEvent = default;
 	[SerializeField] private VoidEventChannelSO _loseDialogueEvent = default;
-	//[SerializeField]
-	public IntEventChannelSO _endDialogueEvent = default;
+	[SerializeField] private IntEventChannelSO _endDialogueEvent = default;
+
 	[Header("Broadcasting on channels")]
-	//[SerializeField]
 	public DialogueDataChannelSO _startDialogueEvent = default;
 
 	[Header("Dialogue Shot Camera")]
@@ -51,27 +50,27 @@ public class StepController : MonoBehaviour
 
 	}
 
-
 	//start a dialogue when interaction
 	//some Steps need to be instantanious. And do not need the interact button.
 	//when interaction again, restart same dialogue.
 	public void InteractWithCharacter()
 	{
-
-		DialogueDataSO displayDialogue = _questData.InteractWithCharacter(_actor, false, false);
-		//Debug.Log("dialogue " + displayDialogue + "actor" + _actor);
-		if (displayDialogue != null)
+		if (_gameStateManager.CurrentGameState == GameState.Gameplay)
 		{
-			_currentDialogue = displayDialogue;
-			StartDialogue();
-		}
-		else
-		{
-			PlayDefaultDialogue();
+			DialogueDataSO displayDialogue = _questData.InteractWithCharacter(_actor, false, false);
+			//Debug.Log("dialogue " + displayDialogue + "actor" + _actor);
+			if (displayDialogue != null)
+			{
+				_currentDialogue = displayDialogue;
+				StartDialogue();
+			}
+			else
+			{
+				PlayDefaultDialogue();
+			}
 		}
 
 	}
-
 
 	void StartDialogue()
 	{
@@ -84,6 +83,7 @@ public class StepController : MonoBehaviour
 		if (dialogueShot)
 			dialogueShot.SetActive(true);
 	}
+
 	void EndDialogue(int dialogueType)
 	{
 		_endDialogueEvent.OnEventRaised -= EndDialogue;

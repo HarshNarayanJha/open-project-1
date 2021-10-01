@@ -51,11 +51,17 @@ public static class FileManager
 			{
 				File.Delete(newFullPath);
 			}
+
+			if (!File.Exists(fullPath))
+			{
+				return false;
+			}
+			
 			File.Move(fullPath, newFullPath);
 		}
 		catch (Exception e)
 		{
-			//Debug.LogError($"Failed to move file from {fullPath} to {newFullPath} with exception {e}");
+			Debug.LogError($"Failed to move file from {fullPath} to {newFullPath} with exception {e}");
 			return false;
 		}
 

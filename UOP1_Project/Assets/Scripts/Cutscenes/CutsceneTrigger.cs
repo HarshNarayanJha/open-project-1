@@ -4,19 +4,19 @@ using UnityEngine.Playables;
 /// <summary>
 /// Class to trigger a cutscene.
 /// </summary>
-
 public class CutsceneTrigger : MonoBehaviour
 {
-	private PlayableDirector _playableDirector = default;
 	[SerializeField] private bool _playOnStart = default;
 	[SerializeField] private bool _playOnce = default;
+	[SerializeField] private QuestManagerSO _questManager = default;
 
-	[Header("Listening to channels")]
+	[Header("Listening to")]
 	[SerializeField] private VoidEventChannelSO _playSpeceficCutscene = default;
 
-	[Header("Broadcasting on channels")]
+	[Header("Broadcasting on")]
 	[SerializeField] private PlayableDirectorChannelSO _playCutsceneEvent = default;
 
+	private PlayableDirector _playableDirector = default;
 
 	private void Start()
 	{
@@ -24,18 +24,27 @@ public class CutsceneTrigger : MonoBehaviour
 		if (_playOnStart)
 			if (_playCutsceneEvent != null)
 				_playCutsceneEvent.RaiseEvent(_playableDirector);
-	}
+
+		//Check if we are playing a new game, we should play the intro cutscene
+		if (_questManager)
+		{
+			if (_questManager.IsNewGame())
+			{
+				_playableDirector.Play();
+			}
+		}
+}
 
 	private void OnEnable()
 	{
-		_playSpeceficCutscene.OnEventRaised += PlaySpeceficCutscene;
+		_playSpeceficCutscene.OnEventRaised += PlaySpecificCutscene;
 	}
 	private void OnDisable()
 	{
-		_playSpeceficCutscene.OnEventRaised -= PlaySpeceficCutscene;
+		_playSpeceficCutscene.OnEventRaised -= PlaySpecificCutscene;
 	}
 
-	void PlaySpeceficCutscene()
+	void PlaySpecificCutscene()
 	{
 		if (_playCutsceneEvent != null)
 			_playCutsceneEvent.RaiseEvent(_playableDirector);
@@ -48,10 +57,7 @@ public class CutsceneTrigger : MonoBehaviour
 	//Remember to remove collider componenet when we remove this
 	private void OnTriggerEnter(Collider other)
 	{
-		if (_playCutsceneEvent != null)
-			_playCutsceneEvent.RaiseEvent(_playableDirector);
-
-		if (_playOnce)
-			Destroy(this);
+		//Fake event raise to test quicker
+		_playSpeceficCutscene.RaiseEvent();
 	}
 }

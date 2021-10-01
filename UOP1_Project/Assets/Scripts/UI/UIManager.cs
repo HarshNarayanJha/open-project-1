@@ -7,17 +7,15 @@ using UnityEngine.Localization;
 public class UIManager : MonoBehaviour
 {
 	[Header("Scene UI")]
-	[SerializeField]
-	private MenuSelectionHandler _selectionHandler = default;
+	[SerializeField] private MenuSelectionHandler _selectionHandler = default;
 	[SerializeField] private UIPopup _popupPanel = default;
-
 	[SerializeField] private UIDialogueManager _dialogueController = default;
-
 	[SerializeField] private UIInventory _inventoryPanel = default;
-
 	[SerializeField] private UIInteraction _interactionPanel = default;
-
+	[SerializeField] private GameObject _switchTabDisplay = default;
+	[SerializeField] private UIItemForAnimation _cookingAnimation = default;
 	[SerializeField] private UIPause _pauseScreen = default;
+	[SerializeField] private UISettingsController _settingScreen = default;
 
 	[SerializeField] private UISettings _settingScreen = default;
 
@@ -25,11 +23,14 @@ public class UIManager : MonoBehaviour
 
 	[Header("Gameplay Components")]
 	[SerializeField] private GameStateSO _gameState = default;
+
+	[Header("Gameplay")]
+	[SerializeField] private GameStateSO _gameStateManager = default;
 	[SerializeField] private MenuSO _mainMenu = default;
 	[SerializeField] private InputReader _inputReader = default;
+	[SerializeField] private ActorSO _mainProtagonist = default;
 
-	[Header("Listening on channels")]
-
+	[Header("Listening on")]
 	[SerializeField] private VoidEventChannelSO _onSceneReady = default;
 
 	[Header("Dialogue Events")]
@@ -38,6 +39,8 @@ public class UIManager : MonoBehaviour
 
 	[Header("Inventory Events")]
 	[SerializeField] private VoidEventChannelSO _openInventoryScreenForCookingEvent = default;
+	[SerializeField] private ItemEventChannelSO _cookRecipeEvent = default;
+
 	[Header("Interaction Events")]
 	[SerializeField] private InteractionUIEventChannelSO _setInteractionEvent = default;
 
@@ -45,52 +48,65 @@ public class UIManager : MonoBehaviour
 	[SerializeField] private LoadEventChannelSO _loadMenuEvent = default;
 	[SerializeField] private VoidEventChannelSO _onInteractionEndedEvent = default;
 
-
 	bool isForCooking = false;
 
-	private void Start()
+	private void OnEnable()
 	{
 		_onSceneReady.OnEventRaised += ResetUI;
 		_openUIDialogueEvent.OnEventRaised += OpenUIDialogue;
 		_closeUIDialogueEvent.OnEventRaised += CloseUIDialogue;
-		_inputReader.menuPauseEvent += OpenUIPause; // subscription to open Pause UI event happens in OnEnabled, but the close Event is only subscribed to when the popup is open
-
+		_inputReader.MenuPauseEvent += OpenUIPause; // subscription to open Pause UI event happens in OnEnabled, but the close Event is only subscribed to when the popup is open
 		_openInventoryScreenForCookingEvent.OnEventRaised += SetInventoryScreenForCooking;
 		_setInteractionEvent.OnEventRaised += SetInteractionPanel;
-
-		_inputReader.openInventoryEvent += SetInventoryScreen;
+		_inputReader.OpenInventoryEvent += SetInventoryScreen;
 		_inventoryPanel.Closed += CloseInventoryScreen;
-
+		_cookRecipeEvent.OnEventRaised += PlayCookingAnimation;
 		_debugScreen.Closed += CloseDebugMenu;
-
 		_inputReader.openDebugMenu += SetDebugMenu;
-
-
 	}
+
+	private void OnDisable()
+	{
+		_onSceneReady.OnEventRaised -= ResetUI;
+		_openUIDialogueEvent.OnEventRaised -= OpenUIDialogue;
+		_closeUIDialogueEvent.OnEventRaised -= CloseUIDialogue;
+		_inputReader.MenuPauseEvent -= OpenUIPause;
+		_openInventoryScreenForCookingEvent.OnEventRaised -= SetInventoryScreenForCooking;
+		_setInteractionEvent.OnEventRaised -= SetInteractionPanel;
+		_inputReader.OpenInventoryEvent -= SetInventoryScreen;
+		_inventoryPanel.Closed -= CloseInventoryScreen;
+		_cookRecipeEvent.OnEventRaised -= PlayCookingAnimation;
+		_debugScreen.Closed -= CloseDebugMenu;
+		_inputReader.openDebugMenu -= SetDebugMenu;
+	}
+
 	void ResetUI()
 	{
 		_dialogueController.gameObject.SetActive(false);
-
 		_inventoryPanel.gameObject.SetActive(false);
-
 		_pauseScreen.gameObject.SetActive(false);
-
 		_interactionPanel.gameObject.SetActive(false);
+		_switchTabDisplay.SetActive(false);
+		_cookingAnimation.gameObject.SetActive(false);
 
 		_debugScreen.gameObject.SetActive(false);
 
 		Time.timeScale = 1;
-
 	}
+
 	void OpenUIDialogue(LocalizedString dialogueLine, ActorSO actor)
 	{
-		_dialogueController.SetDialogue(dialogueLine, actor);
+		bool isProtagonistTalking = (actor == _mainProtagonist);
+		_dialogueController.SetDialogue(dialogueLine, actor, isProtagonistTalking);
+		_interactionPanel.gameObject.SetActive(false);
 		_dialogueController.gameObject.SetActive(true);
 	}
+
 	void CloseUIDialogue(int dialogueType)
 	{
 		_selectionHandler.Unselect();
 		_dialogueController.gameObject.SetActive(false);
+		_onInteractionEndedEvent.RaiseEvent();
 	}
 
 	private void OnDestroy()
@@ -112,29 +128,28 @@ public class UIManager : MonoBehaviour
 		_debugScreen.Closed -= CloseDebugMenu;
 
 	}
+
 	void OpenUIPause()
 	{
+		_inputReader.MenuPauseEvent -= OpenUIPause; // you can open UI pause menu again, if it's closed
 
-		_inputReader.menuPauseEvent -= OpenUIPause; // you can open UI pause menu again, if it's closed
-
-		//	Time.timeScale = 0; // Pause time
+		Time.timeScale = 0; // Pause time
 
 		_pauseScreen.SettingsScreenOpened += OpenSettingScreen;//once the UI Pause popup is open, listen to open Settings 
 		_pauseScreen.BackToMainRequested += ShowBackToMenuConfirmationPopup;//once the UI Pause popup is open, listen to back to menu button
 		_pauseScreen.Resumed += CloseUIPause;//once the UI Pause popup is open, listen to unpause event
 
-
 		_pauseScreen.gameObject.SetActive(true);
 
 		_inputReader.EnableMenuInput();
-		_gameState.UpdateGameState(GameState.Pause);
+		_gameStateManager.UpdateGameState(GameState.Pause);
 	}
 
 	void CloseUIPause()
 	{
 		Time.timeScale = 1; // unpause time
 
-		_inputReader.menuPauseEvent += OpenUIPause; // you can open UI pause menu again, if it's closed
+		_inputReader.MenuPauseEvent += OpenUIPause; // you can open UI pause menu again, if it's closed
 
 		// once the popup is closed, you can't listen to the following events 
 		_pauseScreen.SettingsScreenOpened -= OpenSettingScreen;//once the UI Pause popup is open, listen to open Settings 
@@ -143,14 +158,19 @@ public class UIManager : MonoBehaviour
 
 		_pauseScreen.gameObject.SetActive(false);
 
-		_inputReader.EnableGameplayInput();
+		_gameStateManager.ResetToPreviousGameState();
+		
+		if (_gameStateManager.CurrentGameState == GameState.Gameplay
+			|| _gameStateManager.CurrentGameState == GameState.Combat)
+			{
+				_inputReader.EnableGameplayInput();
+			}
+
 		_selectionHandler.Unselect();
-		_gameState.ResetToPreviousGameState();
 	}
 
 	void OpenSettingScreen()
 	{
-
 		_settingScreen.Closed += CloseSettingScreen; // sub to close setting event with event 
 
 		_pauseScreen.gameObject.SetActive(false); // Set pause screen to inactive
@@ -158,7 +178,6 @@ public class UIManager : MonoBehaviour
 		_settingScreen.gameObject.SetActive(true);// set Setting screen to active 
 
 		// time is still set to 0 and Input is still set to menuInput 
-
 	}
 
 	void CloseSettingScreen()
@@ -175,10 +194,8 @@ public class UIManager : MonoBehaviour
 		//going out from setting screen gets us back to the pause screen
 	}
 
-
 	void ShowBackToMenuConfirmationPopup()
 	{
-
 		_pauseScreen.gameObject.SetActive(false); // Set pause screen to inactive
 
 		_popupPanel.ClosePopupAction += HideBackToMenuConfirmationPopup;
@@ -188,23 +205,19 @@ public class UIManager : MonoBehaviour
 		_inputReader.EnableMenuInput();
 		_popupPanel.gameObject.SetActive(true);
 		_popupPanel.SetPopup(PopupType.BackToMenu);
-
 	}
 
 	void BackToMainMenu(bool confirm)
 	{
-
 		HideBackToMenuConfirmationPopup();// hide confirmation screen, show close UI pause, 
 
-
 		if (confirm)
-
 		{
 			CloseUIPause();//close ui pause to unsub from all events 
 			_loadMenuEvent.RaiseEvent(_mainMenu, false); //load main menu
 		}
-
 	}
+	
 	void HideBackToMenuConfirmationPopup()
 	{
 		_popupPanel.ClosePopupAction -= HideBackToMenuConfirmationPopup;
@@ -216,29 +229,34 @@ public class UIManager : MonoBehaviour
 
 		// time is still set to 0 and Input is still set to menuInput 
 		//going out from confirmaiton popup screen gets us back to the pause screen
-
-
 	}
+
 	void SetInventoryScreenForCooking()
 	{
-		isForCooking = true;
-		OpenInventoryScreen();
-
+		if (_gameStateManager.CurrentGameState == GameState.Gameplay)
+		{
+			isForCooking = true;
+			_interactionPanel.gameObject.SetActive(false);
+			OpenInventoryScreen();
+		}
 	}
+
 	void SetInventoryScreen()
 	{
-		isForCooking = false;
-		OpenInventoryScreen();
-
+		if (_gameStateManager.CurrentGameState == GameState.Gameplay)
+		{
+			isForCooking = false;
+			OpenInventoryScreen();
+		}
 	}
+
 	void OpenInventoryScreen()
 	{
-		_inputReader.menuPauseEvent -= OpenUIPause; // you cant open the UI Pause again when you are in inventory  
-		_inputReader.menuUnpauseEvent -= CloseUIPause; // you can close the UI Pause popup when you are in inventory 
+		_inputReader.MenuPauseEvent -= OpenUIPause; // player cant open the UI Pause again when they are in inventory  
+		_inputReader.MenuUnpauseEvent -= CloseUIPause; // player can close the UI Pause popup when they are in inventory 
 
-		_inputReader.menuCloseEvent += CloseInventoryScreen;
-
-		_inputReader.closeInventoryEvent += CloseInventoryScreen;
+		_inputReader.MenuCloseEvent += CloseInventoryScreen;
+		_inputReader.CloseInventoryEvent += CloseInventoryScreen;
 		if (isForCooking)
 		{
 			_inventoryPanel.FillInventory(InventoryTabType.Recipe, true);
@@ -250,41 +268,47 @@ public class UIManager : MonoBehaviour
 		}
 
 		_inventoryPanel.gameObject.SetActive(true);
-
+		_switchTabDisplay.SetActive(true);
 		_inputReader.EnableMenuInput();
 
-		_gameState.UpdateGameState(GameState.Inventory);
+		_gameStateManager.UpdateGameState(GameState.Inventory);
 	}
+
 	void CloseInventoryScreen()
 	{
+		_inputReader.MenuPauseEvent += OpenUIPause; // you cant open the UI Pause again when you are in inventory  
 
-		_inputReader.menuPauseEvent += OpenUIPause; // you cant open the UI Pause again when you are in inventory  
+		_inputReader.MenuCloseEvent -= CloseInventoryScreen;
+		_inputReader.CloseInventoryEvent -= CloseInventoryScreen;
 
-		_inputReader.menuCloseEvent -= CloseInventoryScreen;
-		_inputReader.closeInventoryEvent -= CloseInventoryScreen;
-
-
+		_switchTabDisplay.SetActive(false);
 		_inventoryPanel.gameObject.SetActive(false);
 
 		if (isForCooking)
 		{
 			_onInteractionEndedEvent.RaiseEvent();
-
 		}
 		_selectionHandler.Unselect();
-		_inputReader.EnableGameplayInput();
-		_gameState.ResetToPreviousGameState();
+		_gameStateManager.ResetToPreviousGameState();
+		if (_gameStateManager.CurrentGameState == GameState.Gameplay || _gameStateManager.CurrentGameState == GameState.Combat)
+			_inputReader.EnableGameplayInput();
 	}
 
-
-	void SetInteractionPanel(bool isOpenEvent, InteractionType interactionType)
+	void SetInteractionPanel(bool isOpen, InteractionType interactionType)
 	{
-		if (isOpenEvent)
+		if (_gameStateManager.CurrentGameState != GameState.Combat)
 		{
-			_interactionPanel.FillInteractionPanel(interactionType);
-		}
-		_interactionPanel.gameObject.SetActive(isOpenEvent);
+			if (isOpen)
+			{
+				_interactionPanel.FillInteractionPanel(interactionType);
+			}
 
+			_interactionPanel.gameObject.SetActive(isOpen);
+		}
+		else if (!isOpen)
+		{
+			_interactionPanel.gameObject.SetActive(isOpen);
+		}
 	}
 
 	void SetDebugMenu()
@@ -315,5 +339,17 @@ public class UIManager : MonoBehaviour
 		_gameState.ResetToPreviousGameState();
 	}
 
+	public void PlayCookingAnimation(ItemSO itemToCook)
+	{
+		CloseInventoryScreen();
+		_cookingAnimation.SetItem(itemToCook);
+		_cookingAnimation.gameObject.SetActive(true);
+		_cookingAnimation.AnimationEnded += StopCookingAnimation;
+	}
 
+	public void StopCookingAnimation()
+	{
+		_cookingAnimation.AnimationEnded -= StopCookingAnimation;
+		_cookingAnimation.gameObject.SetActive(false);
+	}
 }

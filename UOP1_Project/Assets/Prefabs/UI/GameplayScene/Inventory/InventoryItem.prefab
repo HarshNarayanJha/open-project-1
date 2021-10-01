@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 377764689}
   - component: {fileID: 4851260930613569847}
   m_Layer: 5
-  m_Name: Item Image
+  m_Name: ItemImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -95,6 +95,7 @@ MonoBehaviour:
       m_KeyId: 0
       m_Key: 
     m_FallbackState: 0
+    m_WaitForCompletion: 1
   m_UpdateAsset:
     m_PersistentCalls:
       m_Calls:
@@ -196,7 +197,7 @@ GameObject:
   - component: {fileID: 1189222221}
   - component: {fileID: 1189222223}
   m_Layer: 5
-  m_Name: Item Stack Count
+  m_Name: ItemStackCount
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -589,7 +590,7 @@ GameObject:
   - component: {fileID: 2029422595}
   - component: {fileID: 2029422594}
   m_Layer: 5
-  m_Name: Background Image
+  m_Name: BackgroundImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -665,7 +666,7 @@ GameObject:
   - component: {fileID: 2136969675}
   - component: {fileID: 2136969677}
   m_Layer: 5
-  m_Name: Item Name
+  m_Name: ItemName
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -801,11 +802,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_StringReference:
     m_TableReference:
-      m_TableCollectionName: 
+      m_TableCollectionName: GUID:41b74adf4121a468e9dbe8958eb2f813
     m_TableEntryReference:
       m_KeyId: 0
       m_Key: 
     m_FallbackState: 0
+    m_WaitForCompletion: 1
   m_FormatArguments: []
   m_UpdateString:
     m_PersistentCalls:
@@ -985,7 +987,7 @@ GameObject:
   - component: {fileID: 282785887293159925}
   - component: {fileID: 5361300499865444271}
   m_Layer: 5
-  m_Name: Hover Image
+  m_Name: HoverImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1060,7 +1062,7 @@ GameObject:
   - component: {fileID: 6874858741992862401}
   - component: {fileID: 2650992966786581764}
   m_Layer: 5
-  m_Name: Selected Image
+  m_Name: SelectedImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

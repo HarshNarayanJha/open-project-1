@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -9,50 +8,50 @@ public class QuestManagerSO : ScriptableObject
 	[Header("Data")]
 	[SerializeField] private List<QuestlineSO> _questlines = default;
 	[SerializeField] private InventorySO _inventory = default;
-
-
-	[SerializeField] private QuestSO _winningQuest = default;
-	[SerializeField] private QuestSO _losingQuest = default;
+	[SerializeField] private ItemSO _winningItem = default;
+	[SerializeField] private ItemSO _losingItem = default;
 
 	[Header("Linstening to channels")]
 	[FormerlySerializedAs("_checkStepValidityEvent")]
 	[SerializeField] private VoidEventChannelSO _continueWithStepEvent = default;
 	[SerializeField] private IntEventChannelSO _endDialogueEvent = default;
-	[SerializeField] private VoidEventChannelSO _playWinningQuest = default;
-	[SerializeField] private VoidEventChannelSO _playLosingQuest = default;
+	[SerializeField] private VoidEventChannelSO _makeWinningChoiceEvent = default;
+	[SerializeField] private VoidEventChannelSO _makeLosingChoiceEvent = default;
 
 	[Header("Broadcasting on channels")]
-	[FormerlySerializedAs("_completeDialogueEvent")]
 	[SerializeField] private VoidEventChannelSO _playCompletionDialogueEvent = default;
-	[FormerlySerializedAs("_incompleteDialogueEvent")]
 	[SerializeField] private VoidEventChannelSO _playIncompleteDialogueEvent = default;
-
+	[SerializeField] private VoidEventChannelSO _startWinningCutscene = default;
+	[SerializeField] private VoidEventChannelSO _startLosingCutscene = default;
 	[SerializeField] private ItemEventChannelSO _giveItemEvent = default;
-	[SerializeField] private ItemEventChannelSO _rewardItemEvent = default;
+	[SerializeField] private ItemStackEventChannelSO _rewardItemEvent = default;
 	[SerializeField] private SaveSystem saveSystem = default;
+
 	private QuestSO _currentQuest = null;
 	private QuestlineSO _currentQuestline;
 	private StepSO _currentStep;
 	private int _currentQuestIndex = 0;
 	private int _currentQuestlineIndex = 0;
 	private int _currentStepIndex = 0;
+
 	public void OnDisable()
 	{
 		_continueWithStepEvent.OnEventRaised -= CheckStepValidity;
 		_endDialogueEvent.OnEventRaised -= EndDialogue;
-		_playWinningQuest.OnEventRaised -= SetWinningSteps;
-		_playLosingQuest.OnEventRaised -= SetLosingSteps;
+		_makeWinningChoiceEvent.OnEventRaised -= MakeWinningChoice;
+		_makeLosingChoiceEvent.OnEventRaised -= MakeLosingChoice;
 	}
+
 	public void StartGame()
 	{
 		//Add code for saved information
 		_continueWithStepEvent.OnEventRaised += CheckStepValidity;
 		_endDialogueEvent.OnEventRaised += EndDialogue;
-
-		_playWinningQuest.OnEventRaised += SetWinningSteps;
-		_playLosingQuest.OnEventRaised += SetLosingSteps;
+		_makeWinningChoiceEvent.OnEventRaised += MakeWinningChoice;
+		_makeLosingChoiceEvent.OnEventRaised += MakeLosingChoice;
 		StartQuestline();
 	}
+
 	void StartQuestline()
 	{
 		if (_questlines != null)
@@ -64,23 +63,21 @@ public class QuestManagerSO : ScriptableObject
 				if (_currentQuestlineIndex >= 0)
 					_currentQuestline = _questlines.Find(o => !o.IsDone);
 			}
-
 		}
 	}
+
 	bool HasStep(ActorSO actorToCheckWith)
 	{
 		if (_currentStep != null)
 		{
-
 			if (_currentStep.Actor == actorToCheckWith)
 			{
 				return true;
 			}
-
 		}
 		return false;
-
 	}
+
 	bool CheckQuestlineForQuestWithActor(ActorSO actorToCheckWith)
 	{
 		if (_currentQuest == null)//check if there's a current quest 
@@ -104,14 +101,12 @@ public class QuestManagerSO : ScriptableObject
 			{
 				StartQuest(actor);
 			}
-
 		}
 
 		if (HasStep(actor))
 		{
 			if (isCheckValidity)
 			{
-
 				if (isValid)
 				{
 					return _currentStep.CompleteDialogue;
@@ -122,17 +117,15 @@ public class QuestManagerSO : ScriptableObject
 					return _currentStep.IncompleteDialogue;
 
 				}
-
 			}
 			else
 			{
 				return _currentStep.DialogueBeforeStep;
 			}
-
 		}
 		return null;
-
 	}
+
 	//When Interacting with a character, we ask the quest manager if there's a quest that starts with a step with a certain character
 	void StartQuest(ActorSO actorToCheckWith)
 	{
@@ -156,20 +149,23 @@ public class QuestManagerSO : ScriptableObject
 					StartStep();
 			}
 		}
-
 	}
-	void SetWinningSteps()
+
+	void MakeWinningChoice()
 	{
-		for (int i = 0; i < _winningQuest.Steps.Count; i++)
-			_currentQuest.Steps.Add(_winningQuest.Steps[i]);
-
-
+		//check if has sweet recipe
+		_currentStep.Item = _winningItem;
+		_currentStep.EndStepEvent = _startWinningCutscene;
+		CheckStepValidity();
 	}
-	void SetLosingSteps()
+
+	void MakeLosingChoice()
 	{
-		for (int i = 0; i < _losingQuest.Steps.Count; i++)
-			_currentQuest.Steps.Add(_losingQuest.Steps[i]);
+		_currentStep.Item = _losingItem;
+		_currentStep.EndStepEvent = _startLosingCutscene;
+		CheckStepValidity();
 	}
+
 	void StartStep()
 	{
 		if (_currentQuest.Steps != null)
@@ -178,8 +174,8 @@ public class QuestManagerSO : ScriptableObject
 				_currentStep = _currentQuest.Steps[_currentStepIndex];
 
 			}
-
 	}
+
 	void CheckStepValidity()
 	{
 
@@ -188,10 +184,8 @@ public class QuestManagerSO : ScriptableObject
 			switch (_currentStep.Type)
 			{
 				case StepType.CheckItem:
-
 					if (_inventory.Contains(_currentStep.Item))
 					{
-						_inventory.Contains(_currentStep.Item);
 						//Trigger win dialogue
 						_playCompletionDialogueEvent.RaiseEvent();
 					}
@@ -201,6 +195,7 @@ public class QuestManagerSO : ScriptableObject
 						_playIncompleteDialogueEvent.RaiseEvent();
 					}
 					break;
+
 				case StepType.GiveItem:
 					if (_inventory.Contains(_currentStep.Item))
 					{
@@ -214,18 +209,7 @@ public class QuestManagerSO : ScriptableObject
 
 					}
 					break;
-				case StepType.RewardItem:
-					_rewardItemEvent.RaiseEvent(_currentStep.Item);
-					//no dialogue is needed after Reward Item
-					if (_currentStep.CompleteDialogue != null)
-					{
-						_playCompletionDialogueEvent.RaiseEvent();
-					}
-					else
-					{
-						EndStep();
-					}
-					break;
+
 				case StepType.Dialogue:
 					//dialogue has already been played
 					if (_currentStep.CompleteDialogue != null)
@@ -237,53 +221,55 @@ public class QuestManagerSO : ScriptableObject
 						EndStep();
 					}
 					break;
-
-
 			}
 		}
 	}
+
 	void EndDialogue(int dialogueType)
 	{
 
 		//depending on the dialogue that ended, do something 
 		switch ((DialogueType)dialogueType)
 		{
-			case DialogueType.winDialogue:
+			case DialogueType.CompletionDialogue:
+				if (_currentStep.HasReward && _currentStep.RewardItem != null)
+				{
+					ItemStack itemStack = new ItemStack(_currentStep.RewardItem, _currentStep.RewardItemCount);
+					_rewardItemEvent.RaiseEvent(itemStack);
+				}
+
 				EndStep();
 				break;
-			case DialogueType.startDialogue:
+			case DialogueType.StartDialogue:
 				CheckStepValidity();
 				break;
 			default:
 				break;
-
 		}
-
 	}
+
 	void EndStep()
 	{
 		_currentStep = null;
 		if (_currentQuest != null)
-			if (_currentQuest.Steps.Count > _currentStepIndex)
+		if (_currentQuest.Steps.Count > _currentStepIndex)
+		{
+			_currentQuest.Steps[_currentStepIndex].FinishStep();
+			saveSystem.SaveDataToDisk();
+			if (_currentQuest.Steps.Count > _currentStepIndex + 1)
 			{
-				_currentQuest.Steps[_currentStepIndex].FinishStep();
-				saveSystem.SaveDataToDisk();
-				if (_currentQuest.Steps.Count > _currentStepIndex + 1)
-				{
-					_currentStepIndex++;
-					StartStep();
+				_currentStepIndex++;
+				StartStep();
 
-				}
-				else
-				{
-
-					EndQuest();
-				}
 			}
+			else
+			{
 
-
-
+				EndQuest();
+			}
+		}
 	}
+
 	void EndQuest()
 	{
 
@@ -306,6 +292,7 @@ public class QuestManagerSO : ScriptableObject
 
 
 	}
+
 	void EndQuestline()
 	{
 		if (_questlines != null)
@@ -327,6 +314,7 @@ public class QuestManagerSO : ScriptableObject
 
 
 	}
+
 	public List<string> GetFinishedQuestlineItemsGUIds()
 	{
 		List<string> finishedItemsGUIds = new List<string>();
@@ -361,6 +349,7 @@ public class QuestManagerSO : ScriptableObject
 		}
 		return finishedItemsGUIds;
 	}
+
 	public void SetFinishedQuestlineItemsFromSave(List<string> finishedItemsGUIds)
 	{
 
@@ -388,10 +377,9 @@ public class QuestManagerSO : ScriptableObject
 		//Start Questline with the new data 
 		StartQuestline();
 	}
+
 	public void ResetQuestlines()
 	{
-
-
 		foreach (var questline in _questlines)
 		{
 			questline.IsDone = false;
@@ -422,7 +410,10 @@ public class QuestManagerSO : ScriptableObject
 		StartQuestline();
 	}
 
+	public bool IsNewGame()
+	{
+		bool isNew = false;
+		isNew = (!_questlines.Exists(o => o.Quests.Exists(j => j.Steps.Exists(k => k.IsDone))));
+		return isNew;
+	}
 }
-
-
-
